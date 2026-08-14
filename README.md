@@ -86,25 +86,26 @@ SkillX solves these challenges by providing a centralized, intelligent ecosystem
 
 The SkillX platform leverages a scalable, event-driven architecture to handle real-time collaboration.
 
-**Frontend Client (React.js)**
-↓
-*(REST API & WebSocket Connections)*
-↓
-**API Gateway / Middleware Layer**
-↓
-**Backend Micro-services (Express.js)**
-↓
-**Database Layer (MongoDB)**
-↓
-**Real-time Communication (Socket.io & WebRTC)**
-↓
-**Cloud Services (Firebase, Cloudinary, Gemini AI)**
+```text
+Frontend Client (React.js)
+        │
+        ├── REST API
+        └── WebSocket
+        │
+API / Middleware Layer
+        │
+Backend API (Node.js + Express.js)
+        │
+        ├── MongoDB + Mongoose
+        ├── Socket.io + WebRTC
+        └── Firebase / Cloudinary / Gemini AI
+```
 
 ---
 
 ## 🗄 Database Schema (ER Diagram)
 
-The database is modeled with **MongoDB + Mongoose** across 17 collections. Users are identified by `email` (and Firestore UID), and most relationships are expressed through email/UID string references or `ObjectId` foreign keys rather than enforced joins.
+The database is modeled with **MongoDB + Mongoose** across 17 collections. Users are identified by `email` and Firebase UID, while relationships are represented through email/UID references or MongoDB `ObjectId` references and are enforced through application logic.
 
 ```mermaid
 erDiagram
@@ -426,20 +427,22 @@ Secured the platform using JWT-based Role-Based Access Control. Middleware layer
 
 ## 📸 Screenshots
 
+> Add your actual screenshots to `frontend/assets/` using the filenames below.
+
 ### Dashboard
-![Dashboard Placeholder](https://via.placeholder.com/800x450/4f46e5/ffffff?text=Dashboard+View)
+![Dashboard](./frontend/assets/dashboard.png)
 
 ### Profile & Learning Roadmaps
-![Profile Placeholder](https://via.placeholder.com/800x450/7c3aed/ffffff?text=User+Profile)
+![Profile & Learning Roadmaps](./frontend/assets/profile.png)
 
 ### Skill Exchange Ecosystem
-![Skill Exchange Placeholder](https://via.placeholder.com/800x450/059669/ffffff?text=Skill+Exchange+Matching)
+![Skill Exchange](./frontend/assets/skill-exchange.png)
 
 ### Contextual Chat
-![Chat Placeholder](https://via.placeholder.com/800x450/2563eb/ffffff?text=Context-based+Messaging)
+![Contextual Chat](./frontend/assets/chat.png)
 
 ### Collaborative Workspace & Video Session
-![Workspace Placeholder](https://via.placeholder.com/800x450/db2777/ffffff?text=WebRTC+Session+&+Workspace)
+![Collaborative Workspace & Video Session](./frontend/assets/workspace.png)
 
 
 ---
@@ -483,7 +486,7 @@ Secured the platform using JWT-based Role-Based Access Control. Middleware layer
 
 ### 1. Clone the Repository
 ```bash
-git clone https://github.com/yourusername/skillx.git
+git clone https://github.com/sandeepkumaryadav05/skillx.git
 cd skillx
 ```
 
@@ -507,7 +510,7 @@ The platform will now be running on `http://localhost:5173` (Frontend) and `http
 
 ## 🌐 Environment Variables
 
-Create a `.env` file in the `backend` directory:
+Create a `.env` file in the `backend` directory. Never commit this file to GitHub:
 
 ```env
 MONGO_URI=mongodb+srv://<username>:<password>@cluster.mongodb.net/skillx
@@ -524,7 +527,7 @@ FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY----
 PORT=5000
 ```
 
-Create a `.env` file in the `frontend` directory:
+Create a `.env` file in the `frontend` directory. Never commit this file to GitHub:
 
 ```env
 VITE_API_URL=http://localhost:5000
@@ -536,7 +539,20 @@ VITE_MESSAGING_SENDER_ID=your_messaging_sender_id
 VITE_APP_ID=your_app_id
 ```
 
+
 ---
+
+## 🔒 Environment File Safety
+
+Add these files to `.gitignore`:
+
+```gitignore
+backend/.env
+frontend/.env
+.env
+```
+
+Never commit Firebase Admin `private_key`, service-account JSON files, MongoDB passwords, Cloudinary secrets, or Gemini API keys to the repository.
 
 ## 🔐 Security Features
 
@@ -572,7 +588,7 @@ VITE_APP_ID=your_app_id
 
 ## 👨‍💻 Author
 
-**Vishal Rai**  
+**Sandeep Kumar Yadav**  
 
 * **GitHub**: [github.com/sandeepkumaryadav05](https://github.com/sandeepkumaryadav05)
 
@@ -580,7 +596,7 @@ VITE_APP_ID=your_app_id
 
 ## 🤝 Contributing
 
-Contributions, issues, and feature requests are welcome! Feel free to check the [issues page](https://github.com/rai0vishal/skillx/issues). If you're looking to contribute:
+Contributions, issues, and feature requests are welcome! Feel free to check the [issues page](https://github.com/sandeepkumaryadav05/skillx/issues). If you're looking to contribute:
 1. Fork the Project
 2. Create your Feature Branch (`git checkout -b feature/AmazingFeature`)
 3. Commit your Changes (`git commit -m 'Add some AmazingFeature'`)
