@@ -436,6 +436,10 @@ Secured the platform using JWT-based Role-Based Access Control. Middleware layer
 ### First Page of Application
 <img src="https://github.com/user-attachments/assets/a3c673cf-9dfc-4771-bbcd-4beb5876ea30" alt="First Page of Application" width="100%" />
 
+###  SKill-Exchange Page
+<img width="1266" height="849" alt="image" src="https://github.com/user-attachments/assets/7ee6866d-ed4c-462f-b9b3-037e3ee7f7a8" />
+
+
 ---
 
 ## 🔌 API Overview
