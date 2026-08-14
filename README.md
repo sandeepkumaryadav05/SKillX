@@ -105,7 +105,7 @@ Backend API (Node.js + Express.js)
 
 ## 🗄 Database Schema (ER Diagram)
 
-The database is modeled with **MongoDB + Mongoose** across 17 collections. Users are identified by `email` and Firebase UID, while relationships are represented through email/UID references or MongoDB `ObjectId` references and are enforced through application logic.
+The database is modeled with **MongoDB + Mongoose** across 17 collections. Users are identified by `email` and Firebase UID. Relationships are represented through email/UID references or MongoDB `ObjectId` references and enforced through application logic.
 
 ```mermaid
 erDiagram
@@ -259,8 +259,8 @@ erDiagram
     }
     VideoSession {
         ObjectId _id PK
-        ObjectId sessionId FK "Session._id" "unique"
-        string roomId "unique"
+        ObjectId sessionId FK, UK "Session._id"
+        string roomId UK "unique"
         array participants
         string status "waiting | active | ended"
         date startedAt
@@ -292,7 +292,7 @@ erDiagram
     }
     Workspace {
         ObjectId _id PK
-        ObjectId chatRoomId FK "ChatRoom._id" "unique"
+        ObjectId chatRoomId FK, UK "ChatRoom._id"
         ObjectId sessionId FK "Session._id"
         array participants FK "UserProfile.email"
         string notes
