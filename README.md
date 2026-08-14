@@ -102,6 +102,249 @@ The SkillX platform leverages a scalable, event-driven architecture to handle re
 
 ---
 
+## 🗄 Database Schema (ER Diagram)
+
+The database is modeled with **MongoDB + Mongoose** across 17 collections. Users are identified by `email` (and Firestore UID), and most relationships are expressed through email/UID string references or `ObjectId` foreign keys rather than enforced joins.
+
+```mermaid
+erDiagram
+    UserProfile ||--o{ Gig : "posts"
+    UserProfile ||--o{ GigApplication : "applies to"
+    Gig ||--o{ GigApplication : "receives"
+    UserProfile ||--o{ SkillExchange : "lists"
+    SkillExchange ||--o{ ExchangeRequest : "targeted by"
+    UserProfile ||--o{ ExchangeRequest : "sends / receives"
+    UserProfile ||--o{ Session : "participates in"
+    ChatRoom ||--o{ Session : "schedules"
+    Session ||--o{ SessionAttendance : "logs"
+    Session ||--o{ SessionNotes : "has"
+    Session ||--o| VideoSession : "activates"
+    UserProfile ||--o{ ChatRoom : "members"
+    ChatRoom ||--o{ Message : "contains"
+    UserProfile ||--o{ Review : "writes"
+    UserProfile ||--o{ Review : "receives"
+    Session ||--o{ Review : "rated in"
+    UserProfile ||--o{ Notification : "receives"
+    ChatRoom ||--o| Workspace : "owns"
+    Workspace ||--o{ WorkspaceTask : "tracks"
+    Workspace ||--o{ Resource : "stores"
+    UserProfile ||--o{ Roadmap : "generates"
+
+    UserProfile {
+        string email PK "unique"
+        string name
+        string role "user | admin"
+        string status "active | suspended"
+        array permissions
+        string location
+        string avatar
+        string bio
+        array skills
+        array socialLinks
+        object stats
+        array availability
+        array customAvailability
+        date createdAt
+        date updatedAt
+    }
+    Gig {
+        ObjectId _id PK
+        string title
+        string category
+        string type
+        array skills
+        string description
+        number budget
+        string duration
+        string location
+        string postedBy FK "UserProfile.email"
+        date createdAt
+        date updatedAt
+    }
+    GigApplication {
+        ObjectId _id PK
+        ObjectId gigId FK "Gig._id"
+        string gigTitle
+        string gigOwnerEmail FK "UserProfile.email"
+        string applicantEmail FK "UserProfile.email"
+        string message
+        string status "pending | accepted | rejected"
+        date createdAt
+        date updatedAt
+    }
+    SkillExchange {
+        ObjectId _id PK
+        string name
+        string email
+        string userId FK "UserProfile"
+        string skillOffered
+        string skillWanted
+        string location
+        number matchScore
+        date createdAt
+        date updatedAt
+    }
+    ExchangeRequest {
+        ObjectId _id PK
+        string fromUserId FK "UserProfile"
+        string toUserId FK "UserProfile"
+        string exchangeId FK "SkillExchange._id"
+        string fromEmail FK "UserProfile.email"
+        string toEmail FK "UserProfile.email"
+        string message
+        string status "pending | accepted | rejected"
+        string chatRoomId FK "ChatRoom._id"
+        date createdAt
+        date updatedAt
+    }
+    ChatRoom {
+        ObjectId _id PK
+        array participants FK "UserProfile.email"
+        string referenceId "Gig / ExchangeRequest id"
+        string referenceType "gig | exchange"
+        string title
+        date lastMessageAt
+        map unreadCounts
+        date createdAt
+        date updatedAt
+    }
+    Message {
+        ObjectId _id PK
+        ObjectId chatRoomId FK "ChatRoom._id"
+        string senderEmail FK "UserProfile.email"
+        string text
+        boolean readStatus
+        date createdAt
+        date updatedAt
+    }
+    Session {
+        ObjectId _id PK
+        string roomId
+        array participants FK "UserProfile.email"
+        ObjectId chatRoomId FK "ChatRoom._id"
+        string requestedBy FK "UserProfile.email"
+        string date
+        string time
+        string startTime
+        string endTime
+        string duration "30/60/90/120 mins"
+        string mode "Remote | Video | In Person | Chat"
+        string notes
+        string status "Pending | Accepted | Scheduled | Completed | Cancelled ..."
+        boolean matchesAvailability
+        boolean conflictDetected
+        array reviewedBy FK "UserProfile.email"
+        object exchangeRoles
+        date createdAt
+        date updatedAt
+    }
+    SessionAttendance {
+        ObjectId _id PK
+        ObjectId sessionId FK "Session._id"
+        string userEmail FK "UserProfile.email"
+        date joinedAt
+        date leftAt
+        number durationMinutes
+        date createdAt
+        date updatedAt
+    }
+    SessionNotes {
+        ObjectId _id PK
+        ObjectId sessionId FK "Session._id"
+        string userEmail FK "UserProfile.email"
+        string content
+        date updatedAt
+        date createdAt
+    }
+    VideoSession {
+        ObjectId _id PK
+        ObjectId sessionId FK "Session._id" "unique"
+        string roomId "unique"
+        array participants
+        string status "waiting | active | ended"
+        date startedAt
+        date endedAt
+        number durationMinutes
+        date createdAt
+        date updatedAt
+    }
+    Review {
+        ObjectId _id PK
+        string reviewerEmail FK "UserProfile.email"
+        string reviewedUserEmail FK "UserProfile.email"
+        ObjectId sessionId FK "Session._id"
+        number rating "1-5"
+        string feedback
+        date createdAt
+        date updatedAt
+    }
+    Notification {
+        ObjectId _id PK
+        string userId FK "UserProfile.email"
+        string type "MESSAGE | REQUEST | SESSION | REVIEW | GIG | SYSTEM | ADMIN"
+        string message
+        string referenceId
+        boolean isRead
+        boolean isArchived
+        date createdAt
+        date updatedAt
+    }
+    Workspace {
+        ObjectId _id PK
+        ObjectId chatRoomId FK "ChatRoom._id" "unique"
+        ObjectId sessionId FK "Session._id"
+        array participants FK "UserProfile.email"
+        string notes
+        date createdAt
+        date updatedAt
+    }
+    WorkspaceTask {
+        ObjectId _id PK
+        ObjectId workspaceId FK "Workspace._id"
+        string createdBy FK "UserProfile.email"
+        string title
+        string description
+        string assignedTo FK "UserProfile.email"
+        string status "Pending | In Progress | Completed"
+        string dueDate
+        date createdAt
+        date updatedAt
+    }
+    Resource {
+        ObjectId _id PK
+        ObjectId workspaceId FK "Workspace._id"
+        string uploadedBy FK "UserProfile.email"
+        string resourceType "PDF | VIDEO | LINK | IMAGE | ZIP | DOCUMENT | CODE | OTHER"
+        string title
+        string url
+        number fileSize
+        string publicId "Cloudinary"
+        date createdAt
+        date updatedAt
+    }
+    Roadmap {
+        ObjectId _id PK
+        string userEmail FK "UserProfile.email"
+        string goal
+        object generatedRoadmap
+        boolean isSaved
+        number progress
+        array completedWeeks
+        number totalWeeks
+        string status "Active | Completed | Paused"
+        date createdAt
+        date updatedAt
+    }
+```
+
+**Notes:**
+- `Gig.postedBy`, `ExchangeRequest.from/to*`, `Message.senderEmail`, `Notification.userId`, etc. store email/UID **strings** (no enforced FK) — matching is done in application code.
+- `ChatRoom.referenceId` is a polymorphic reference to a `Gig` or `ExchangeRequest` depending on `referenceType`.
+- `Workspace` → `ChatRoom` and `VideoSession` → `Session` are enforced **1:1** via unique indexes.
+- Compound unique indexes enforce: one attendance record per session/user, one notes document per session/user, and one review per session/reviewer.
+
+---
+
 ## 📂 Project Structure
 
 ```text
