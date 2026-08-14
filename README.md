@@ -331,8 +331,7 @@ VITE_APP_ID=your_app_id
 
 **Vishal Rai**  
 
-* **GitHub**: [github.com/rai0vishal](https://github.com/rai0vishal)
-* **LinkedIn**: [linkedin.com/in/rai0vishal](https://linkedin.com/in/rai0vishal)
+* **GitHub**: [github.com/sandeepkumaryadav05](https://github.com/sandeepkumaryadav05)
 
 ---
 
