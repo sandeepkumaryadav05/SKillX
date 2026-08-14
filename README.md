@@ -430,20 +430,16 @@ Secured the platform using JWT-based Role-Based Access Control. Middleware layer
 > Add your actual screenshots to `frontend/assets/` using the filenames below.
 
 ### Dashboard
-![Dashboard](./frontend/assets/dashboard.png)
+![Dashboard](<img width="1866" height="862" alt="image" src="https://github.com/user-attachments/assets/1ab46a9c-0734-4dbc-9d8b-1e73897f5f31" />
+)
 
 ### Profile & Learning Roadmaps
-![Profile & Learning Roadmaps](./frontend/assets/profile.png)
+![Profile & Learning Roadmaps](<img width="1708" height="826" alt="image" src="https://github.com/user-attachments/assets/55f0f27f-8d25-423b-9761-251ad42c2b17" />
+)
 
-### Skill Exchange Ecosystem
-![Skill Exchange](./frontend/assets/skill-exchange.png)
-
-### Contextual Chat
-![Contextual Chat](./frontend/assets/chat.png)
-
-### Collaborative Workspace & Video Session
-![Collaborative Workspace & Video Session](./frontend/assets/workspace.png)
-
+### First Page of Application
+![Skill Exchange](<img width="1423" height="851" alt="image" src="https://github.com/user-attachments/assets/a3c673cf-9dfc-4771-bbcd-4beb5876ea30" />
+)
 
 ---
 
