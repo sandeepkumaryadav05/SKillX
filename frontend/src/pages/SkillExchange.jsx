@@ -4,7 +4,7 @@
  */
 import React, { useEffect, useState, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { AnimatePresence } from 'framer-motion'
+import { AnimatePresence, motion } from 'framer-motion'
 import { toast } from 'sonner'
 const ArrowLeftRight = ({ size, color, style }) => <i className="ti ti-arrows-exchange" style={{ fontSize: size || 'inherit', color, ...style }} />;
 const ChevronDown = ({ size, color, style }) => <i className="ti ti-chevron-down" style={{ fontSize: size || 'inherit', color, ...style }} />;
