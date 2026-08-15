@@ -34,8 +34,8 @@ router.post('/roadmap', aiLimiter, async (req, res) => {
     });
   } catch (error) {
     console.error('POST /api/ai/roadmap error:', error.message || error);
-    return res.status(500).json({
-      message: 'Failed to generate roadmap. Please try again in a moment.',
+    return res.status(error.statusCode || 500).json({
+      message: error.message || 'Failed to generate roadmap. Please try again in a moment.',
     });
   }
 });

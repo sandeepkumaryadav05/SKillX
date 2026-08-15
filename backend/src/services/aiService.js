@@ -1,19 +1,101 @@
 import { GoogleGenAI } from '@google/genai';
-
+import AppError from '../utils/AppError.js';
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' });
+
+// Model used by every Gemini feature in this service.
+// gemini-2.5-flash was retired on the Gemini API — gemini-3.6-flash is the
+// current GA replacement and is verified to work with this key via generateContent.
+const GEMINI_MODEL = 'gemini-3.6-flash';
 
 const MAX_RETRIES = 3;
 const RETRY_DELAY_MS = 2000;
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-export const generateLearningRoadmap = async (goal) => {
+/**
+ * Extracts the numeric HTTP status from a Gemini SDK error.
+ * The SDK populates error.status, but some error paths only embed the code in
+ * error.message as JSON — handle both so retry/status mapping never misses.
+ */
+const extractStatus = (error) => {
+  if (typeof error?.status === 'number') return error.status;
+  try {
+    const parsed = JSON.parse(error?.message || '');
+    const code = parsed?.error?.code ?? parsed?.status;
+    const asNumber = Number(code);
+    if (Number.isInteger(asNumber) && asNumber >= 100 && asNumber <= 599) return asNumber;
+  } catch {
+    /* message is not JSON — fall through */
+  }
+  return null;
+};
+
+/**
+ * Calls the Gemini API with the given prompt and returns the raw text from the
+ * first candidate. Retries transient overload (503) and rate-limit (429) errors.
+ * Throws an AppError with a client-safe message and a real HTTP status.
+ */
+const callGeminiText = async (prompt) => {
   if (!process.env.GEMINI_API_KEY) {
-    throw new Error('GEMINI_API_KEY is not configured in the environment variables.');
+    throw new AppError('AI service is not configured on the server.', 500);
   }
 
-  const prompt = `Generate a practical, beginner-friendly learning roadmap for the goal: "${goal}".
+  let lastError;
+
+  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      const response = await ai.models.generateContent({
+        model: GEMINI_MODEL,
+        contents: prompt,
+      });
+
+      const text = response?.text?.trim?.();
+      if (!text) {
+        console.warn('Gemini returned no text content (blocked or empty response).');
+        throw new AppError('AI service returned an empty response. Please try again in a moment.', 500);
+      }
+
+      return text;
+    } catch (error) {
+      lastError = error;
+      console.error(`Gemini call attempt ${attempt}/${MAX_RETRIES} failed:`, error.message || error);
+
+      const status = extractStatus(error);
+      if ((status === 503 || status === 429) && attempt < MAX_RETRIES) {
+        const delay = RETRY_DELAY_MS * attempt;
+        console.log(`Retrying Gemini call in ${delay}ms...`);
+        await sleep(delay);
+        continue;
+      }
+
+      break;
+    }
+  }
+
+  console.error('All Gemini call attempts failed:', lastError);
+
+  const finalStatus = extractStatus(lastError);
+  if (finalStatus === 429) {
+    throw new AppError('AI rate limit reached. Please wait a moment and try again.', 429);
+  }
+  if (finalStatus === 503) {
+    throw new AppError('AI service is temporarily unavailable. Please try again in a moment.', 503);
+  }
+  throw new AppError('AI service is unavailable. Please try again in a moment.', 500);
+};
+
+/** Removes markdown code fences (``` / ```json) and trims surrounding whitespace. */
+const stripCodeFences = (text) => text.replace(/```(json)?/g, '').replace(/```/g, '').trim();
+
+export const generateLearningRoadmap = async (goal) => {
+  if (!process.env.GEMINI_API_KEY) {
+    throw new AppError('AI service is not configured on the server.', 500);
+  }
+
+  const safeGoal = String(goal || '').trim().slice(0, 300);
+
+  const prompt = `Generate a practical, beginner-friendly learning roadmap for the goal: "${safeGoal}".
     
 The output MUST be a valid JSON object with the following structure:
 {
@@ -30,53 +112,38 @@ The output MUST be a valid JSON object with the following structure:
 }
 Ensure the output is strictly valid JSON with no markdown wrapping like \`\`\`json. Return only the JSON object.`;
 
-  let lastError;
+  const text = await callGeminiText(prompt);
+  const cleanedText = stripCodeFences(text);
 
-  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
-    try {
-      const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
-        contents: prompt,
-      });
-
-      const text = response.text;
-      const cleanedText = text.replace(/```json/g, '').replace(/```/g, '').trim();
-      const roadmapJSON = JSON.parse(cleanedText);
-
-      return roadmapJSON;
-    } catch (error) {
-      lastError = error;
-      console.error(`AI roadmap attempt ${attempt}/${MAX_RETRIES} failed:`, error.message || error);
-
-      // Retry on 503 (overload) or 429 (rate limit), but not on other errors
-      const status = error?.status || error?.httpStatusCode;
-      if ((status === 503 || status === 429) && attempt < MAX_RETRIES) {
-        const delay = RETRY_DELAY_MS * attempt;
-        console.log(`Retrying in ${delay}ms...`);
-        await sleep(delay);
-        continue;
-      }
-
-      break;
+  try {
+    const roadmapJSON = JSON.parse(cleanedText);
+    if (!roadmapJSON || typeof roadmapJSON !== 'object' || !Array.isArray(roadmapJSON.milestones)) {
+      throw new Error('Parsed roadmap is missing the expected structure');
     }
+    return roadmapJSON;
+  } catch (err) {
+    console.error('Failed to parse roadmap JSON:', cleanedText?.slice(0, 500));
+    throw new AppError('AI returned an invalid roadmap. Please try again in a moment.', 500);
   }
-
-  console.error('All AI roadmap attempts failed:', lastError);
-  throw new Error('Failed to generate learning roadmap from AI service. Please try again in a moment.');
 };
 
 export const enhanceGigDescription = async ({ title, category, skills, description }) => {
   if (!process.env.GEMINI_API_KEY) {
-    throw new Error('GEMINI_API_KEY is not configured in the environment variables.');
+    throw new AppError('AI service is not configured on the server.', 500);
   }
 
-  const skillsList = Array.isArray(skills) ? skills.join(', ') : skills;
-  const additionalDetails = description && description.trim() ? description.trim() : 'None provided';
+  const safeTitle = String(title || '').trim().slice(0, 300);
+  const safeCategory = String(category || '').trim().slice(0, 100);
+  const safeSkills = (Array.isArray(skills) ? skills : []).map((s) => String(s).slice(0, 100));
+  const safeDescription = String(description || '').slice(0, 2000);
+
+  const skillsList = safeSkills.join(', ');
+  const additionalDetails = safeDescription.trim() ? safeDescription.trim() : 'None provided';
 
   const prompt = `Generate a professional SkillX gig description using the following context:
 
-Title: ${title}
-Category: ${category}
+Title: ${safeTitle}
+Category: ${safeCategory}
 Skills Required: ${skillsList}
 Additional Details: ${additionalDetails}
 
@@ -90,48 +157,26 @@ Requirements:
 - Do NOT add markdown formatting, bullet points, or headers
 - Return ONLY the generated description text as a plain string, nothing else`;
 
-  let lastError;
-
-  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
-    try {
-      const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
-        contents: prompt,
-      });
-
-      const text = response.text.replace(/```/g, '').replace(/"/g, '').trim();
-      return text;
-    } catch (error) {
-      lastError = error;
-      console.error(`AI gig enhance attempt ${attempt}/${MAX_RETRIES} failed:`, error.message || error);
-
-      const status = error?.status || error?.httpStatusCode;
-      if ((status === 503 || status === 429) && attempt < MAX_RETRIES) {
-        const delay = RETRY_DELAY_MS * attempt;
-        console.log(`Retrying in ${delay}ms...`);
-        await sleep(delay);
-        continue;
-      }
-
-      break;
-    }
-  }
-
-  console.error('All AI gig enhance attempts failed:', lastError);
-  throw new Error('Failed to enhance gig description. Please try again in a moment.');
+  const text = await callGeminiText(prompt);
+  return stripCodeFences(text).replace(/^"+|"+$/g, '');
 };
 
 export const generateMatchInsights = async (currentUser, matches) => {
   if (!process.env.GEMINI_API_KEY) {
-    throw new Error('GEMINI_API_KEY is not configured in the environment variables.');
+    throw new AppError('AI service is not configured on the server.', 500);
   }
 
   if (!matches || matches.length === 0) return [];
 
-  const matchesContext = matches.map((m) => `
+  const safeCurrentUser = {
+    skillOffered: String(currentUser?.skillOffered || '').slice(0, 500),
+    skillWanted: String(currentUser?.skillWanted || '').slice(0, 500),
+  };
+
+  const matchesContext = matches.slice(0, 10).map((m) => `
 Matched User ID: ${m._id}
-Offers: ${m.skillOffered}
-Wants: ${m.skillWanted}
+Offers: ${String(m.skillOffered || '').slice(0, 500)}
+Wants: ${String(m.skillWanted || '').slice(0, 500)}
 Match Score: ${m.matchScore}%
   `).join('\n');
 
@@ -142,8 +187,8 @@ For each matched user, generate:
 2. "suggestedExchange": A specific suggested exchange activity.
 
 Current User:
-Offers: ${currentUser.skillOffered}
-Wants: ${currentUser.skillWanted}
+Offers: ${safeCurrentUser.skillOffered}
+Wants: ${safeCurrentUser.skillWanted}
 
 Matches:
 ${matchesContext}
@@ -163,34 +208,13 @@ Requirements:
   }
 ]`;
 
-  let lastError;
-
-  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
-    try {
-      const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
-        contents: prompt,
-      });
-
-      const text = response.text.replace(/```json/g, '').replace(/```/g, '').trim();
-      const parsed = JSON.parse(text);
-      return parsed;
-    } catch (error) {
-      lastError = error;
-      console.error(`AI match insights attempt ${attempt}/${MAX_RETRIES} failed:`, error.message || error);
-
-      const status = error?.status || error?.httpStatusCode;
-      if ((status === 503 || status === 429) && attempt < MAX_RETRIES) {
-        const delay = RETRY_DELAY_MS * attempt;
-        await sleep(delay);
-        continue;
-      }
-
-      break;
-    }
+  try {
+    const text = await callGeminiText(prompt);
+    const parsed = JSON.parse(stripCodeFences(text));
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (error) {
+    // Non-fatal: the UI hides the AI insights section rather than crashing.
+    console.error('Failed to generate match insights:', error.message || error);
+    return [];
   }
-
-  console.error('All AI match insights attempts failed:', lastError);
-  // Fallback: return empty array so UI doesn't crash, just shows no insights
-  return [];
 };

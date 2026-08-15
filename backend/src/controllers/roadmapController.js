@@ -26,7 +26,7 @@ export const generateRoadmap = async (req, res) => {
     });
   } catch (error) {
     console.error('Error in generateRoadmap controller:', error);
-    res.status(500).json({ message: error.message || 'Failed to generate roadmap' });
+    res.status(error.statusCode || 500).json({ message: error.message || 'Failed to generate roadmap' });
   }
 };
 
