@@ -4,6 +4,7 @@ import Session from '../models/Session.js';
 import UserProfile from '../models/UserProfile.js';
 import asyncHandler from '../utils/asyncHandler.js';
 import AppError from '../utils/AppError.js';
+import { createNotification } from '../services/notificationService.js';
 
 // Review routes — secured by the global authenticate middleware
 const router = express.Router();
@@ -75,6 +76,18 @@ router.post('/', asyncHandler(async (req, res) => {
       },
     }
   );
+
+  // Notify the reviewed user (non-fatal)
+  try {
+    await createNotification({
+      userId: reviewedUserEmail,
+      type: 'REVIEW',
+      message: `${reviewerEmail.split('@')[0]} left you a ${rating}-star review`,
+      referenceId: sessionId,
+    });
+  } catch (notifErr) {
+    console.warn('Review notification failed (non-fatal):', notifErr.message);
+  }
 
   res.status(201).json(review);
 }));

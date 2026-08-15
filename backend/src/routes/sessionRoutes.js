@@ -4,6 +4,7 @@ import Session from '../models/Session.js';
 import { calculateExchangeRoles } from '../services/roleService.js';
 import { getUpcomingSession, getAllUpcomingSessions } from '../controllers/sessionController.js';
 import { emitSessionUpdate } from '../socket/notificationSocket.js';
+import { createNotification } from '../services/notificationService.js';
 
 // Session routes — secured by the global authenticate middleware
 const router = express.Router();
@@ -69,6 +70,21 @@ router.post('/', async (req, res) => {
     });
 
     res.status(201).json(session);
+
+    // Notify the other participant about the new session request (non-fatal)
+    const otherParticipant = participants.find((p) => p !== requestedBy);
+    if (otherParticipant) {
+      try {
+        await createNotification({
+          userId: otherParticipant,
+          type: 'SESSION',
+          message: `${requestedBy.split('@')[0]} requested a session with you (${date} at ${time})`,
+          referenceId: session._id.toString(),
+        });
+      } catch (notifErr) {
+        console.warn('Session notification failed (non-fatal):', notifErr.message);
+      }
+    }
   } catch (error) {
     console.error('Error creating session:', error);
     res.status(500).json({ message: 'Failed to create session.' });

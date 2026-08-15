@@ -15,40 +15,16 @@ export const initNotificationSocket = (socketIoInstance, usersMap) => {
  * @param {Object} notificationData 
  */
 export const emitNotification = (userEmail, notificationData) => {
-  if (!io || !onlineUsers) return;
+  if (!io) return;
 
-  const socketIds = [];
-  for (const [id, email] of onlineUsers.entries()) {
-    if (email === userEmail) {
-      socketIds.push(id);
-    }
-  }
-
-  // Method 1: direct socketId (for users already in onlineUsers map)
-  socketIds.forEach(socketId => {
-    io.to(socketId).emit('newNotification', notificationData);
-  });
-
-  // Method 2: named room fallback (for users who joined via joinUserRoom)
+  // Every authenticated socket auto-joins `user:<email>` on connect (index.js),
+  // so a single room emit reaches all of the user's tabs — no duplicates.
   io.to(`user:${userEmail}`).emit('newNotification', notificationData);
 };
 
 export const emitNotificationCount = (userEmail, count) => {
-  if (!io || !onlineUsers) return;
+  if (!io) return;
 
-  const socketIds = [];
-  for (const [id, email] of onlineUsers.entries()) {
-    if (email === userEmail) {
-      socketIds.push(id);
-    }
-  }
-
-  // Method 1: direct socketId (for users already in onlineUsers map)
-  socketIds.forEach(socketId => {
-    io.to(socketId).emit('notificationCountUpdated', count);
-  });
-
-  // Method 2: named room fallback (for users who joined via joinUserRoom)
   io.to(`user:${userEmail}`).emit('notificationCountUpdated', count);
 };
 

@@ -4,7 +4,7 @@ import Session from '../models/Session.js';
 import VideoSession from '../models/VideoSession.js';
 import SessionAttendance from '../models/SessionAttendance.js';
 import SessionNotes from '../models/SessionNotes.js';
-import { emitNotification } from '../socket/notificationSocket.js';
+import { createNotification } from '../services/notificationService.js';
 
 // Video Session routes — secured by the global authenticate middleware
 const router = express.Router();
@@ -84,15 +84,16 @@ router.post('/join', async (req, res) => {
 
     const otherUserEmail = session.participants.find(p => p !== userEmail);
     if (otherUserEmail) {
-      emitNotification(otherUserEmail, {
-        _id: new mongoose.Types.ObjectId().toString(),
-        type: 'session_joined',
-        title: 'Session Started',
-        message: `${userEmail.split('@')[0]} has joined the session.`,
-        link: `/session/${session._id}`,
-        createdAt: now,
-        isRead: false
-      });
+      try {
+        await createNotification({
+          userId: otherUserEmail,
+          type: 'SESSION',
+          message: `${userEmail.split('@')[0]} has joined the session.`,
+          referenceId: session._id.toString(),
+        });
+      } catch (notifErr) {
+        console.warn('Session join notification failed (non-fatal):', notifErr.message);
+      }
     }
 
 
