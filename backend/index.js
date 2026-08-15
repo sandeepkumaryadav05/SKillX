@@ -57,8 +57,9 @@ const corsOriginResolver = (origin, callback) => {
     return callback(null, true);
   }
 
-  // Regex to match Vercel preview URL patterns, e.g. https://s-kill-*.vercel.app
-  if (/^https:\/\/s-kill-.*\.vercel\.app$/.test(origin)) {
+  // Regex to match any Vercel-hosted deployment of this project
+  // (production or preview), e.g. https://skillx-sooty.vercel.app
+  if (/^https:\/\/[a-zA-Z0-9-]+\.vercel\.app$/.test(origin)) {
     return callback(null, true);
   }
 
@@ -310,6 +311,16 @@ app.use('/api', (req, res, next) => {
     return next();
   }
   return authenticate(req, res, next);
+});
+
+// ─── Health Check ──────────────────────────────────────────────────────────────
+// Public uptime/health endpoint for monitoring. Intentionally NOT mounted under
+// /api, so it never passes through the global authenticate middleware.
+app.get('/health', (req, res) => {
+  res.status(200).json({
+    status: 'success',
+    message: 'SkillX backend is running',
+  });
 });
 
 // ─── Routes ────────────────────────────────────────────────────────────────────
